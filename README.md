@@ -12,7 +12,7 @@ Currently it contains:
 Use:
 
 ```
-  rosrun acoustic_msgs_tools sonar_image_view
+  rosrun acoustic_msgs_tools acoustic_image_view
 ```
 
 No parameters are necessary.  You can select the compatible message you want to view from the dropdown.  If it's not listed, click refresh.

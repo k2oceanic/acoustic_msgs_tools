@@ -32,42 +32,77 @@ void WaterColumnView::setupSignals(){
                      this,SLOT(updateRangeBearing(QMouseEvent*)));
 }
 
-double getRange(const acoustic_msgs::MultibeamWatercolumn::ConstPtr &wc_msg, size_t sample_number){
+double getRange(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, size_t sample_number){
     double range = double(sample_number) *
-            wc_msg->sound_speed /
+            wc_msg->ping_info.sound_speed /
             (2.0 * wc_msg->sample_rate);
     return  range;
 }
 
-int getSampleNo(const acoustic_msgs::MultibeamWatercolumn::ConstPtr &wc_msg, double range){
+int getSampleNo(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, double range){
     double scale = (2.0 * wc_msg->sample_rate) /
-                       wc_msg->sound_speed;
+                       wc_msg->ping_info.sound_speed;
     int sample_no = range * scale;
     return sample_no;
 }
 
-double rowMajor(const acoustic_msgs::MultibeamWatercolumn::ConstPtr &wc_msg, double  beam_idx, double sample_idx){
+double rowMajor(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, double  beam_idx, double sample_idx){
 
-  auto data = reinterpret_cast<const int16_t*>(wc_msg->data.data());
   beam_idx = beam_idx + 0.5 - (beam_idx<0);
   sample_idx = sample_idx + 0.5 - (sample_idx<0);
-  sample_idx = sample_idx - wc_msg->sample0[beam_idx];
+  sample_idx = sample_idx - wc_msg->sample0;
   auto rows = wc_msg->samples_per_beam;
-  auto cols = wc_msg->num_beams;
+  auto cols = wc_msg->rx_angles.size();
   auto index = int(sample_idx)*int(cols)+int(beam_idx);
 
   if (int(beam_idx)>=cols || int(sample_idx)>=rows || int(beam_idx)<0 || int(sample_idx)<0 || index >= int(rows * cols) || index < 0){
     return 0.0;
   }else {
-    return data[index];
+    switch( wc_msg->image.dtype){
+      case acoustic_msgs::SonarImageData::DTYPE_UINT8:
+        return reinterpret_cast<const uint8_t*>(wc_msg->image.data.data())[index];
+      case acoustic_msgs::SonarImageData::DTYPE_INT8:
+        return reinterpret_cast<const int8_t*>(wc_msg->image.data.data())[index];
+      case acoustic_msgs::SonarImageData::DTYPE_UINT16:
+        return reinterpret_cast<const uint16_t*>(wc_msg->image.data.data())[index];
+      case acoustic_msgs::SonarImageData::DTYPE_INT16:
+        return reinterpret_cast<const int16_t*>(wc_msg->image.data.data())[index];
+      case acoustic_msgs::SonarImageData::DTYPE_UINT32:
+        return reinterpret_cast<const uint32_t*>(wc_msg->image.data.data())[index];
+      case acoustic_msgs::SonarImageData::DTYPE_INT32:
+        return reinterpret_cast<const int32_t*>(wc_msg->image.data.data())[index];
+      case acoustic_msgs::SonarImageData::DTYPE_UINT64:
+        return reinterpret_cast<const uint64_t*>(wc_msg->image.data.data())[index];
+      case acoustic_msgs::SonarImageData::DTYPE_INT64:
+        return reinterpret_cast<const int64_t*>(wc_msg->image.data.data())[index];
+      case acoustic_msgs::SonarImageData::DTYPE_FLOAT32:
+        return reinterpret_cast<const float*>(wc_msg->image.data.data())[index];
+      case acoustic_msgs::SonarImageData::DTYPE_FLOAT64:
+        return reinterpret_cast<const double*>(wc_msg->image.data.data())[index];
+      default:
+        return std::nan(""); // unknown data type    
+    }
   }
 }
 
-double getVal(const acoustic_msgs::MultibeamWatercolumn::ConstPtr &wc_msg,_1D::LinearInterpolator<double> beam_idx_interp, double x, double y){
+double getVal(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg,_1D::LinearInterpolator<double> beam_idx_interp, double x, double y){
 
 
   auto angle = atan2(x,y);
-  if(angle>wc_msg->rx_angle.back() || angle<wc_msg->rx_angle.front()){
+  if(wc_msg->rx_angles.size() == 1)
+  {
+    if(!wc_msg->ping_info.rx_beamwidths.empty() && fabs(angle) > wc_msg->ping_info.rx_beamwidths[0])
+      return 0;
+    else
+    {
+      x = getSampleNo(wc_msg,x);
+      y = getSampleNo(wc_msg,y);
+      auto v = std::sqrt(std::pow(x,2)+std::pow(y,2));
+      return rowMajor(wc_msg,0,v);
+    }
+
+  }
+  if(angle>wc_msg->rx_angles.back() || angle<wc_msg->rx_angles.front()){
     return 0;
   }else{
 
@@ -86,15 +121,15 @@ double getVal(const acoustic_msgs::MultibeamWatercolumn::ConstPtr &wc_msg,_1D::L
 
 
 
-void WaterColumnView::wcCallback(const acoustic_msgs::MultibeamWatercolumn::ConstPtr &wc_msg){
+void WaterColumnView::wcCallback(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg){
   auto M = wc_msg->samples_per_beam;
-  auto N = wc_msg->num_beams;
+  auto N = wc_msg->rx_angles.size();
 
 
 
-  const uint8_t *bits = wc_msg->data.data();
+  const uint8_t *bits = wc_msg->image.data.data();
 
-  auto beam_angles = wc_msg->rx_angle;
+  auto beam_angles = wc_msg->rx_angles;
   std::vector<float> beam_index;
   beam_index.resize(N);
   for(size_t i = 0; i< beam_index.size(); i++){
@@ -104,12 +139,11 @@ void WaterColumnView::wcCallback(const acoustic_msgs::MultibeamWatercolumn::Cons
   beam_idx_interp.setData(beam_angles,beam_index);
 
   if(new_msg){
-    setRange(getRange(wc_msg,M+wc_msg->sample0[beam_idx_interp(0)]));
+    setRange(getRange(wc_msg,M+wc_msg->sample0));
     new_msg = false;
   }
 
   //ROS_INFO("wc callback");
-  size_t type_size = 0;
   ui->plot->clearItems();
 
   ui->plot->yAxis->setRangeReversed(ui->reverse_y->checkState());
@@ -125,25 +159,15 @@ void WaterColumnView::wcCallback(const acoustic_msgs::MultibeamWatercolumn::Cons
   ui->plot->yAxis->setScaleRatio(ui->plot->xAxis,1.0);
   colorMap->data()->setRange(QCPRange(ui->plot->xAxis->range().lower, ui->plot->xAxis->range().upper), QCPRange(ui->plot->yAxis->range().lower, ui->plot->yAxis->range().upper));
 
-
-  switch (wc_msg->dtype) {
-  case acoustic_msgs::MultibeamWatercolumn::DTYPE_INT16:
-    type_size = 2;
-    auto len = M*N;
-    auto data = reinterpret_cast<const int16_t*>(bits);
-
-
-    double x, y, z;
-    for (int xIndex=0; xIndex<nx; ++xIndex)
+  double x, y, z;
+  for (int xIndex=0; xIndex<nx; ++xIndex)
+  {
+    for (int yIndex=0; yIndex<ny; ++yIndex)
     {
-      for (int yIndex=0; yIndex<ny; ++yIndex)
-      {
-        colorMap->data()->cellToCoord(xIndex, yIndex, &x, &y);
-        z = getVal(wc_msg,beam_idx_interp,x,y);
-        colorMap->data()->setCell(xIndex, yIndex, z);
-      }
+      colorMap->data()->cellToCoord(xIndex, yIndex, &x, &y);
+      z = getVal(wc_msg,beam_idx_interp,x,y);
+      colorMap->data()->setCell(xIndex, yIndex, z);
     }
-    break;
   }
 
 
@@ -151,7 +175,10 @@ void WaterColumnView::wcCallback(const acoustic_msgs::MultibeamWatercolumn::Cons
   // set the color gradient of the color map to one of the presets:
   colorMap->setGradient(QCPColorGradient::gpHot);
 
-  colorMap->setDataRange(QCPRange(0,ui->gain->maximum() - ui->gain->value()));
+  if(ui->auto_gain->isChecked())
+    colorMap->rescaleDataRange(true);
+  else
+    colorMap->setDataRange(QCPRange(0,ui->gain->maximum() - ui->gain->value()));
 
   // make sure the axis rect and color scale synchronize their bottom and top margins (so they line up):
   QCPMarginGroup *marginGroup = new QCPMarginGroup(ui->plot);
@@ -175,7 +202,7 @@ void WaterColumnView::spinOnce(){
 void WaterColumnView::on_wc_topic_currentIndexChanged(const QString &arg1)
 {
   if(wc_sub_.getTopic() != arg1.toStdString()){
-    wc_sub_ = nh_->subscribe<acoustic_msgs::MultibeamWatercolumn>(arg1.toStdString(), 1, &WaterColumnView::wcCallback, this);
+    wc_sub_ = nh_->subscribe<acoustic_msgs::RawSonarImage>(arg1.toStdString(), 1, &WaterColumnView::wcCallback, this);
     new_msg = true;
   }
 }
@@ -215,7 +242,7 @@ void WaterColumnView::updateTopics(){
   ui->wc_topic->clear();
   QStringList topic_list;
   for(auto topic : master_topics){
-    if(topic.datatype=="acoustic_msgs/MultibeamWatercolumn"){
+    if(topic.datatype=="acoustic_msgs/RawSonarImage"){
       QString::fromStdString(topic.name);
       topic_list.push_back(QString::fromStdString(topic.name));
     }
@@ -226,4 +253,19 @@ void WaterColumnView::updateTopics(){
 void WaterColumnView::on_refresh_btn_clicked()
 {
   updateTopics();
+}
+
+void WaterColumnView::on_auto_gain_stateChanged(int state)
+{
+  if(state)
+  {  
+    ui->gain->setDisabled(true);
+    colorMap->rescaleDataRange(true);
+  }
+  else
+  {
+    ui->gain->setEnabled(true);
+    colorMap->setDataRange(QCPRange(0,ui->gain->maximum() - ui->gain->value()));
+  }
+  ui->plot->replot();
 }

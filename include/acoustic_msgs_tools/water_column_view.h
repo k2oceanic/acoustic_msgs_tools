@@ -4,8 +4,7 @@
 #include <QWidget>
 #include "qcustomplot.h"
 #include <ros/ros.h>
-//#include <norbit_msgs/WaterColumnStamped.h>
-#include <acoustic_msgs/MultibeamWatercolumn.h>
+#include <acoustic_msgs/RawSonarImage.h>
 #include <qtimer.h>
 #include "libInterpolate/Interpolate.hpp"
 #include "ros/master.h"
@@ -23,7 +22,7 @@ public:
   ~WaterColumnView();
   void setupSignals();
 
-  void wcCallback(const acoustic_msgs::MultibeamWatercolumn::ConstPtr& wc_msg);
+  void wcCallback(const acoustic_msgs::RawSonarImage::ConstPtr& wc_msg);
 private slots:
   void spinOnce();
   void updateRangeBearing(QMouseEvent *event);
@@ -39,6 +38,8 @@ private slots:
   void on_range_valueChanged(double arg1);
 
   void on_refresh_btn_clicked();
+
+  void on_auto_gain_stateChanged(int state);
 
 private:
   Ui::WaterColumnView *ui;

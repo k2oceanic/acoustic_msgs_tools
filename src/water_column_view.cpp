@@ -89,6 +89,19 @@ double getVal(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg,_1D::LinearIn
 
 
   auto angle = atan2(x,y);
+  if(wc_msg->rx_angles.size() == 1)
+  {
+    if(!wc_msg->ping_info.rx_beamwidths.empty() && fabs(angle) > wc_msg->ping_info.rx_beamwidths[0])
+      return 0;
+    else
+    {
+      x = getSampleNo(wc_msg,x);
+      y = getSampleNo(wc_msg,y);
+      auto v = std::sqrt(std::pow(x,2)+std::pow(y,2));
+      return rowMajor(wc_msg,0,v);
+    }
+
+  }
   if(angle>wc_msg->rx_angles.back() || angle<wc_msg->rx_angles.front()){
     return 0;
   }else{
@@ -162,7 +175,10 @@ void WaterColumnView::wcCallback(const acoustic_msgs::RawSonarImage::ConstPtr &w
   // set the color gradient of the color map to one of the presets:
   colorMap->setGradient(QCPColorGradient::gpHot);
 
-  colorMap->setDataRange(QCPRange(0,ui->gain->maximum() - ui->gain->value()));
+  if(ui->auto_gain->isChecked())
+    colorMap->rescaleDataRange(true);
+  else
+    colorMap->setDataRange(QCPRange(0,ui->gain->maximum() - ui->gain->value()));
 
   // make sure the axis rect and color scale synchronize their bottom and top margins (so they line up):
   QCPMarginGroup *marginGroup = new QCPMarginGroup(ui->plot);
@@ -237,4 +253,19 @@ void WaterColumnView::updateTopics(){
 void WaterColumnView::on_refresh_btn_clicked()
 {
   updateTopics();
+}
+
+void WaterColumnView::on_auto_gain_stateChanged(int state)
+{
+  if(state)
+  {  
+    ui->gain->setDisabled(true);
+    colorMap->rescaleDataRange(true);
+  }
+  else
+  {
+    ui->gain->setEnabled(true);
+    colorMap->setDataRange(QCPRange(0,ui->gain->maximum() - ui->gain->value()));
+  }
+  ui->plot->replot();
 }

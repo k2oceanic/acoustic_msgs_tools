@@ -39,6 +39,8 @@ private slots:
 
   void on_refresh_btn_clicked();
 
+  void on_auto_gain_stateChanged(int state);
+
 private:
   Ui::WaterColumnView *ui;
   ros::NodeHandlePtr nh_;

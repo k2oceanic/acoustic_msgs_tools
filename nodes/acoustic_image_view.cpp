@@ -10,6 +10,10 @@ int main(int argc, char *argv[])
   WaterColumnView w;
   w.setWindowTitle(QString::fromStdString(
                        ros::this_node::getName()));
+
+  QIcon icon(":/icons/acoustic_image_view_icon.svg");
+  w.setWindowIcon(icon);
+
   w.show();  
   return a.exec();
 }

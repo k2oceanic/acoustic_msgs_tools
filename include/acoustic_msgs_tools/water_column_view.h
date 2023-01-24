@@ -25,13 +25,12 @@ public:
   void setupSignals();
 
   void wcCallback(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg);
+  void detectionCallback(const acoustic_msgs::msg::SonarDetections::SharedPtr det_msg);
 private slots:
   void spinOnce();
   void updateRangeBearing(QMouseEvent *event);
   void setRange(double range);
   void updateTopics();
-
-
 
   void on_wc_topic_currentIndexChanged(const QString &arg1);
 
@@ -44,11 +43,14 @@ private slots:
   void on_auto_gain_stateChanged(int state);
 
 private:
+  void checkFlipState();
   Ui::WaterColumnView *ui;
   rclcpp::Node::SharedPtr node_;
   rclcpp::Subscription<acoustic_msgs::msg::RawSonarImage>::SharedPtr wc_sub_;
+  rclcpp::Subscription<acoustic_msgs::msg::SonarDetections>::SharedPtr det_sub_;
   QTimer *ros_timer;
   QCPColorMap *colorMap;
+  QCPGraph *detctionGraph;
   bool new_msg;
 };
 

@@ -14,14 +14,22 @@ WaterColumnView::WaterColumnView(QWidget *parent) :
 
   ros_timer = new QTimer(this);
   connect(ros_timer, SIGNAL(timeout()), this, SLOT(spinOnce()));
-  ros_timer->start(100);
+  ros_timer->start(10);
 
   ui->plot->setInteractions(QCP::iRangeDrag|QCP::iRangeZoom); // this will also allow rescaling the color scale by dragging/zooming
   ui->plot->axisRect()->setupFullAxesBox(true);
   colorMap = new QCPColorMap(ui->plot->xAxis, ui->plot->yAxis);
+  detctionGraph = ui->plot->addGraph();
+
+
+
   setRange(ui->range->value());
 
   setupSignals();
+
+  using std::placeholders::_1;
+  det_sub_ = node_->create_subscription<acoustic_msgs::msg::SonarDetections>(
+        "/r2sonic_node/detections", 1, std::bind(&WaterColumnView::detectionCallback, this, _1));;
 }
 
 WaterColumnView::~WaterColumnView()
@@ -121,7 +129,11 @@ double getVal(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg,_1D::Lin
 }
 
 
+void WaterColumnView::checkFlipState(){
+  ui->plot->yAxis->setRangeReversed(ui->reverse_y->checkState());
+  ui->plot->xAxis->setRangeReversed(ui->reverse_x->checkState());
 
+}
 
 void WaterColumnView::wcCallback(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg){
   auto M = wc_msg->samples_per_beam;
@@ -148,9 +160,7 @@ void WaterColumnView::wcCallback(const acoustic_msgs::msg::RawSonarImage::Shared
   //ROS_INFO("wc callback");
   ui->plot->clearItems();
 
-  ui->plot->yAxis->setRangeReversed(ui->reverse_y->checkState());
-  ui->plot->xAxis->setRangeReversed(ui->reverse_x->checkState());
-
+  checkFlipState();
 
   int nx = 300;
   int ny = 400;
@@ -191,6 +201,27 @@ void WaterColumnView::wcCallback(const acoustic_msgs::msg::RawSonarImage::Shared
   return;
 }
 
+void WaterColumnView::detectionCallback(const acoustic_msgs::msg::SonarDetections::SharedPtr det_msg){
+  auto n = det_msg->two_way_travel_times.size();
+  auto sound_speed = det_msg->ping_info.sound_speed;
+  checkFlipState();
+  QVector<double> x(n), y(n);
+  for(size_t i=0; i<n; i++){
+    double range = det_msg->two_way_travel_times[i] * sound_speed;
+    double rx_angle = det_msg->rx_angles[i];
+    x[i] = range * sin(rx_angle);
+    y[i] = range * cos(rx_angle);
+  }
+  detctionGraph->setData(x, y);
+  QPen pen;
+  pen.setColor(QColor(QColorConstants::Green));
+  ui->plot->graph()->setPen(pen);
+  ui->plot->graph()->setLineStyle((QCPGraph::LineStyle::lsNone));
+  ui->plot->graph()->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssPlus, 4));
+
+  ui->plot->replot();
+}
+
 
 void WaterColumnView::spinOnce(){
   if(rclcpp::ok()){
@@ -208,6 +239,7 @@ void WaterColumnView::on_wc_topic_currentIndexChanged(const QString &arg1)
           arg1.toStdString(), 1, std::bind(&WaterColumnView::wcCallback, this, _1));;
     new_msg = true;
   }
+
 }
 
 void WaterColumnView::updateRangeBearing(QMouseEvent *event){

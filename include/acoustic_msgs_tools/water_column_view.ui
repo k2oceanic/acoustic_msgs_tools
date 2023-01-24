@@ -75,6 +75,9 @@
       <widget class="QComboBox" name="wc_topic"/>
      </item>
      <item>
+      <widget class="QComboBox" name="detect_topic"/>
+     </item>
+     <item>
       <widget class="QToolButton" name="refresh_btn">
        <property name="text">
         <string>refresh</string>

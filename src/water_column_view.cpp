@@ -3,10 +3,12 @@
 
 WaterColumnView::WaterColumnView(QWidget *parent) :
   QWidget(parent),
-  ui(new Ui::WaterColumnView)
+  ui(new Ui::WaterColumnView),
+  Node("water_column_view")
 {
   ui->setupUi(this);
-  nh_.reset(new ros::NodeHandle("~"));
+
+  node_ = std::make_shared<rclcpp::Node>("hello_gui");
 
   updateTopics();
 
@@ -32,21 +34,21 @@ void WaterColumnView::setupSignals(){
                      this,SLOT(updateRangeBearing(QMouseEvent*)));
 }
 
-double getRange(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, size_t sample_number){
+double getRange(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg, size_t sample_number){
     double range = double(sample_number) *
             wc_msg->ping_info.sound_speed /
             (2.0 * wc_msg->sample_rate);
     return  range;
 }
 
-int getSampleNo(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, double range){
+int getSampleNo(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg, double range){
     double scale = (2.0 * wc_msg->sample_rate) /
                        wc_msg->ping_info.sound_speed;
     int sample_no = range * scale;
     return sample_no;
 }
 
-double rowMajor(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, double  beam_idx, double sample_idx){
+double rowMajor(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg, double  beam_idx, double sample_idx){
 
   beam_idx = beam_idx + 0.5 - (beam_idx<0);
   sample_idx = sample_idx + 0.5 - (sample_idx<0);
@@ -59,25 +61,25 @@ double rowMajor(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, double  be
     return 0.0;
   }else {
     switch( wc_msg->image.dtype){
-      case acoustic_msgs::SonarImageData::DTYPE_UINT8:
+      case acoustic_msgs::msg::SonarImageData::DTYPE_UINT8:
         return reinterpret_cast<const uint8_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_INT8:
+      case acoustic_msgs::msg::SonarImageData::DTYPE_INT8:
         return reinterpret_cast<const int8_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_UINT16:
+      case acoustic_msgs::msg::SonarImageData::DTYPE_UINT16:
         return reinterpret_cast<const uint16_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_INT16:
+      case acoustic_msgs::msg::SonarImageData::DTYPE_INT16:
         return reinterpret_cast<const int16_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_UINT32:
+      case acoustic_msgs::msg::SonarImageData::DTYPE_UINT32:
         return reinterpret_cast<const uint32_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_INT32:
+      case acoustic_msgs::msg::SonarImageData::DTYPE_INT32:
         return reinterpret_cast<const int32_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_UINT64:
+      case acoustic_msgs::msg::SonarImageData::DTYPE_UINT64:
         return reinterpret_cast<const uint64_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_INT64:
+      case acoustic_msgs::msg::SonarImageData::DTYPE_INT64:
         return reinterpret_cast<const int64_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_FLOAT32:
+      case acoustic_msgs::msg::SonarImageData::DTYPE_FLOAT32:
         return reinterpret_cast<const float*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_FLOAT64:
+      case acoustic_msgs::msg::SonarImageData::DTYPE_FLOAT64:
         return reinterpret_cast<const double*>(wc_msg->image.data.data())[index];
       default:
         return std::nan(""); // unknown data type    
@@ -85,7 +87,7 @@ double rowMajor(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, double  be
   }
 }
 
-double getVal(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg,_1D::LinearInterpolator<double> beam_idx_interp, double x, double y){
+double getVal(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg,_1D::LinearInterpolator<double> beam_idx_interp, double x, double y){
 
 
   auto angle = atan2(x,y);
@@ -121,7 +123,7 @@ double getVal(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg,_1D::LinearIn
 
 
 
-void WaterColumnView::wcCallback(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg){
+void WaterColumnView::wcCallback(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg){
   auto M = wc_msg->samples_per_beam;
   auto N = wc_msg->rx_angles.size();
 
@@ -191,18 +193,19 @@ void WaterColumnView::wcCallback(const acoustic_msgs::RawSonarImage::ConstPtr &w
 
 
 void WaterColumnView::spinOnce(){
-  if(ros::ok()){
-    ros::spinOnce();
+  if(rclcpp::ok()){
+    rclcpp::spin_some(node_);
   }
   else
-      QApplication::quit();
+    QApplication::quit();
 }
-
 
 void WaterColumnView::on_wc_topic_currentIndexChanged(const QString &arg1)
 {
-  if(wc_sub_.getTopic() != arg1.toStdString()){
-    wc_sub_ = nh_->subscribe<acoustic_msgs::RawSonarImage>(arg1.toStdString(), 1, &WaterColumnView::wcCallback, this);
+  if(wc_sub_->get_topic_name() != arg1.toStdString()){
+    using std::placeholders::_1;
+    wc_sub_ = node_->create_subscription<acoustic_msgs::msg::RawSonarImage>(
+          arg1.toStdString(), 1, std::bind(&WaterColumnView::wcCallback, this, _1));;
     new_msg = true;
   }
 }
@@ -237,17 +240,18 @@ void WaterColumnView::on_range_valueChanged(double arg1)
 }
 
 void WaterColumnView::updateTopics(){
-  ros::master::V_TopicInfo master_topics;
-  ros::master::getTopics(master_topics);
+  auto master_topics  = this->get_topic_names_and_types();
   ui->wc_topic->clear();
   QStringList topic_list;
   for(auto topic : master_topics){
-    if(topic.datatype=="acoustic_msgs/RawSonarImage"){
-      QString::fromStdString(topic.name);
-      topic_list.push_back(QString::fromStdString(topic.name));
+    QString::fromStdString("topic[0]");
+    if(topic.second[0]=="acoustic_msgs/msg/RawSonarImage"){
+      QString::fromStdString(topic.first);
+      topic_list.push_back(QString::fromStdString(topic.first));
     }
   }
   ui->wc_topic->addItems(topic_list);
+  return;
 }
 
 void WaterColumnView::on_refresh_btn_clicked()

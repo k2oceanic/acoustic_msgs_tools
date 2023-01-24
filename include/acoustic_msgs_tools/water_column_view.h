@@ -3,17 +3,19 @@
 
 #include <QWidget>
 #include "qcustomplot.h"
-#include <ros/ros.h>
-#include <acoustic_msgs/RawSonarImage.h>
+#include <rclcpp/node.hpp>
+#include <acoustic_msgs/msg/raw_sonar_image.hpp>
+#include <acoustic_msgs/msg/sonar_detections.hpp>
 #include <qtimer.h>
 #include "libInterpolate/Interpolate.hpp"
-#include "ros/master.h"
+#include "rclcpp/executors.hpp"
+//#include "ros/master.h"
 
 namespace Ui {
 class WaterColumnView;
 }
 
-class WaterColumnView : public QWidget
+class WaterColumnView : public QWidget, public rclcpp::Node
 {
   Q_OBJECT
 
@@ -22,7 +24,7 @@ public:
   ~WaterColumnView();
   void setupSignals();
 
-  void wcCallback(const acoustic_msgs::RawSonarImage::ConstPtr& wc_msg);
+  void wcCallback(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg);
 private slots:
   void spinOnce();
   void updateRangeBearing(QMouseEvent *event);
@@ -43,8 +45,8 @@ private slots:
 
 private:
   Ui::WaterColumnView *ui;
-  ros::NodeHandlePtr nh_;
-  ros::Subscriber wc_sub_;
+  rclcpp::Node::SharedPtr node_;
+  rclcpp::Subscription<acoustic_msgs::msg::RawSonarImage>::SharedPtr wc_sub_;
   QTimer *ros_timer;
   QCPColorMap *colorMap;
   bool new_msg;

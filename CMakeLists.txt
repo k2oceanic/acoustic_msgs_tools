@@ -82,6 +82,11 @@ file(GLOB_RECURSE UI
     "include/${PROJECT_NAME}/*.ui"
 )
 
+## find all resource files
+file(GLOB QRC
+    "rc/*.qrc"
+)
+
 message("Adding ${PROJECT_NAME} UI files: "  )
 foreach(source ${UI})
     message("  - " ${source})

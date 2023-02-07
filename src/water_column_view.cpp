@@ -27,9 +27,11 @@ WaterColumnView::WaterColumnView(QWidget *parent) :
 
   setupSignals();
 
-  using std::placeholders::_1;
-  det_sub_ = node_->create_subscription<acoustic_msgs::msg::SonarDetections>(
-        "/r2sonic_node/detections", 1, std::bind(&WaterColumnView::detectionCallback, this, _1));;
+  setWindowTitle(QString::fromStdString(this->get_name()));
+
+//  using std::placeholders::_1;
+//  det_sub_ = node_->create_subscription<acoustic_msgs::msg::SonarDetections>(
+//        "/r2sonic/detections", 1, std::bind(&WaterColumnView::detectionCallback, this, _1));;
 }
 
 WaterColumnView::~WaterColumnView()
@@ -273,16 +275,31 @@ void WaterColumnView::on_range_valueChanged(double arg1)
 
 void WaterColumnView::updateTopics(){
   auto master_topics  = this->get_topic_names_and_types();
+
+  {
   ui->wc_topic->clear();
   QStringList topic_list;
-  for(auto topic : master_topics){
-    QString::fromStdString("topic[0]");
-    if(topic.second[0]=="acoustic_msgs/msg/RawSonarImage"){
-      QString::fromStdString(topic.first);
-      topic_list.push_back(QString::fromStdString(topic.first));
+    for(auto topic : master_topics){
+      QString::fromStdString("topic[0]");
+      if(topic.second[0]=="acoustic_msgs/msg/RawSonarImage"){
+        QString::fromStdString(topic.first);
+        topic_list.push_back(QString::fromStdString(topic.first));
+      }
     }
+    ui->wc_topic->addItems(topic_list);
   }
-  ui->wc_topic->addItems(topic_list);
+  {
+  ui->detect_topic->clear();
+  QStringList topic_list;
+    for(auto topic : master_topics){
+      QString::fromStdString("topic[0]");
+      if(topic.second[0]=="acoustic_msgs/msg/SonarDetections"){
+        QString::fromStdString(topic.first);
+        topic_list.push_back(QString::fromStdString(topic.first));
+      }
+    }
+    ui->detect_topic->addItems(topic_list);
+  }
   return;
 }
 
@@ -305,3 +322,17 @@ void WaterColumnView::on_auto_gain_stateChanged(int state)
   }
   ui->plot->replot();
 }
+
+void WaterColumnView::on_detect_topic_currentTextChanged(const QString &arg1)
+{
+  if(arg1.toStdString()==""){
+    return;
+  }
+  if(!det_sub_ || det_sub_->get_topic_name() != arg1.toStdString()){
+    using std::placeholders::_1;
+    det_sub_ = node_->create_subscription<acoustic_msgs::msg::SonarDetections>(
+          arg1.toStdString(), 1, std::bind(&WaterColumnView::detectionCallback, this, _1));;
+    new_msg = true;
+  }
+}
+

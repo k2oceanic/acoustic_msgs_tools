@@ -19,6 +19,7 @@ WaterColumnView::WaterColumnView(QWidget *parent) :
   ui->plot->setInteractions(QCP::iRangeDrag|QCP::iRangeZoom); // this will also allow rescaling the color scale by dragging/zooming
   ui->plot->axisRect()->setupFullAxesBox(true);
   colorMap = new QCPColorMap(ui->plot->xAxis, ui->plot->yAxis);
+  colorMap->setGradient(QCPColorGradient::gpNight);
   detctionGraph = ui->plot->addGraph();
 
 
@@ -28,10 +29,6 @@ WaterColumnView::WaterColumnView(QWidget *parent) :
   setupSignals();
 
   setWindowTitle(QString::fromStdString(this->get_name()));
-
-//  using std::placeholders::_1;
-//  det_sub_ = node_->create_subscription<acoustic_msgs::msg::SonarDetections>(
-//        "/r2sonic/detections", 1, std::bind(&WaterColumnView::detectionCallback, this, _1));;
 }
 
 WaterColumnView::~WaterColumnView()
@@ -47,12 +44,12 @@ void WaterColumnView::setupSignals(){
 double getRange(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg, size_t sample_number){
     double range = double(sample_number) *
             wc_msg->ping_info.sound_speed /
-            (2.0 * wc_msg->sample_rate);
+            (2.0 * wc_msg->ping_info.sample_rate);
     return  range;
 }
 
 int getSampleNo(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg, double range){
-    double scale = (2.0 * wc_msg->sample_rate) /
+    double scale = (2.0 * wc_msg->ping_info.sample_rate) /
                        wc_msg->ping_info.sound_speed;
     int sample_no = range * scale;
     return sample_no;
@@ -187,7 +184,8 @@ void WaterColumnView::wcCallback(const acoustic_msgs::msg::RawSonarImage::Shared
 
 
   // set the color gradient of the color map to one of the presets:
-  colorMap->setGradient(QCPColorGradient::gpHot);
+
+  colorMap->setInterpolate(false);
 
   if(ui->auto_gain->isChecked())
     colorMap->rescaleDataRange(true);
@@ -235,13 +233,15 @@ void WaterColumnView::spinOnce(){
 
 void WaterColumnView::on_wc_topic_currentIndexChanged(const QString &arg1)
 {
-  if(wc_sub_->get_topic_name() != arg1.toStdString()){
+  if(arg1.toStdString()==""){
+    return;
+  }
+  if(!wc_sub_ || wc_sub_->get_topic_name() != arg1.toStdString()){
     using std::placeholders::_1;
     wc_sub_ = node_->create_subscription<acoustic_msgs::msg::RawSonarImage>(
           arg1.toStdString(), 1, std::bind(&WaterColumnView::wcCallback, this, _1));;
     new_msg = true;
   }
-
 }
 
 void WaterColumnView::updateRangeBearing(QMouseEvent *event){
@@ -333,6 +333,27 @@ void WaterColumnView::on_detect_topic_currentTextChanged(const QString &arg1)
     det_sub_ = node_->create_subscription<acoustic_msgs::msg::SonarDetections>(
           arg1.toStdString(), 1, std::bind(&WaterColumnView::detectionCallback, this, _1));;
     new_msg = true;
+  }
+}
+
+
+void WaterColumnView::on_color_ramp_select_currentIndexChanged(int index)
+{
+  switch (index) {
+  case 0:
+    colorMap->setGradient(QCPColorGradient::gpNight);
+    break;
+  case 1:
+    colorMap->setGradient(QCPColorGradient::gpCold);
+    break;
+  case 2:
+    colorMap->setGradient(QCPColorGradient::gpHot);
+    break;
+  case 3:
+    colorMap->setGradient(QCPColorGradient::gpGrayscale);
+    break;
+  default:
+    break;
   }
 }
 

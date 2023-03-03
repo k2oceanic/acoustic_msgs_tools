@@ -44,6 +44,8 @@ private slots:
 
   void on_detect_topic_currentTextChanged(const QString &arg1);
 
+  void on_color_ramp_select_currentIndexChanged(int index);
+
 private:
   void checkFlipState();
   Ui::WaterColumnView *ui;

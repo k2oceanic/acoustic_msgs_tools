@@ -32,21 +32,21 @@ void WaterColumnView::setupSignals(){
                      this,SLOT(updateRangeBearing(QMouseEvent*)));
 }
 
-double getRange(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, size_t sample_number){
+double getRange(const marine_acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, size_t sample_number){
     double range = double(sample_number) *
             wc_msg->ping_info.sound_speed /
             (2.0 * wc_msg->sample_rate);
     return  range;
 }
 
-int getSampleNo(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, double range){
+int getSampleNo(const marine_acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, double range){
     double scale = (2.0 * wc_msg->sample_rate) /
                        wc_msg->ping_info.sound_speed;
     int sample_no = range * scale;
     return sample_no;
 }
 
-double rowMajor(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, double  beam_idx, double sample_idx){
+double rowMajor(const marine_acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, double  beam_idx, double sample_idx){
 
   beam_idx = beam_idx + 0.5 - (beam_idx<0);
   sample_idx = sample_idx + 0.5 - (sample_idx<0);
@@ -59,25 +59,25 @@ double rowMajor(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, double  be
     return 0.0;
   }else {
     switch( wc_msg->image.dtype){
-      case acoustic_msgs::SonarImageData::DTYPE_UINT8:
+      case marine_acoustic_msgs::SonarImageData::DTYPE_UINT8:
         return reinterpret_cast<const uint8_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_INT8:
+      case marine_acoustic_msgs::SonarImageData::DTYPE_INT8:
         return reinterpret_cast<const int8_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_UINT16:
+      case marine_acoustic_msgs::SonarImageData::DTYPE_UINT16:
         return reinterpret_cast<const uint16_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_INT16:
+      case marine_acoustic_msgs::SonarImageData::DTYPE_INT16:
         return reinterpret_cast<const int16_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_UINT32:
+      case marine_acoustic_msgs::SonarImageData::DTYPE_UINT32:
         return reinterpret_cast<const uint32_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_INT32:
+      case marine_acoustic_msgs::SonarImageData::DTYPE_INT32:
         return reinterpret_cast<const int32_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_UINT64:
+      case marine_acoustic_msgs::SonarImageData::DTYPE_UINT64:
         return reinterpret_cast<const uint64_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_INT64:
+      case marine_acoustic_msgs::SonarImageData::DTYPE_INT64:
         return reinterpret_cast<const int64_t*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_FLOAT32:
+      case marine_acoustic_msgs::SonarImageData::DTYPE_FLOAT32:
         return reinterpret_cast<const float*>(wc_msg->image.data.data())[index];
-      case acoustic_msgs::SonarImageData::DTYPE_FLOAT64:
+      case marine_acoustic_msgs::SonarImageData::DTYPE_FLOAT64:
         return reinterpret_cast<const double*>(wc_msg->image.data.data())[index];
       default:
         return std::nan(""); // unknown data type    
@@ -85,7 +85,7 @@ double rowMajor(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg, double  be
   }
 }
 
-double getVal(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg,_1D::LinearInterpolator<double> beam_idx_interp, double x, double y){
+double getVal(const marine_acoustic_msgs::RawSonarImage::ConstPtr &wc_msg,_1D::LinearInterpolator<double> beam_idx_interp, double x, double y){
 
 
   auto angle = atan2(x,y);
@@ -121,7 +121,7 @@ double getVal(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg,_1D::LinearIn
 
 
 
-void WaterColumnView::wcCallback(const acoustic_msgs::RawSonarImage::ConstPtr &wc_msg){
+void WaterColumnView::wcCallback(const marine_acoustic_msgs::RawSonarImage::ConstPtr &wc_msg){
   auto M = wc_msg->samples_per_beam;
   auto N = wc_msg->rx_angles.size();
 
@@ -202,7 +202,7 @@ void WaterColumnView::spinOnce(){
 void WaterColumnView::on_wc_topic_currentIndexChanged(const QString &arg1)
 {
   if(wc_sub_.getTopic() != arg1.toStdString()){
-    wc_sub_ = nh_->subscribe<acoustic_msgs::RawSonarImage>(arg1.toStdString(), 1, &WaterColumnView::wcCallback, this);
+    wc_sub_ = nh_->subscribe<marine_acoustic_msgs::RawSonarImage>(arg1.toStdString(), 1, &WaterColumnView::wcCallback, this);
     new_msg = true;
   }
 }
@@ -242,7 +242,7 @@ void WaterColumnView::updateTopics(){
   ui->wc_topic->clear();
   QStringList topic_list;
   for(auto topic : master_topics){
-    if(topic.datatype=="acoustic_msgs/RawSonarImage"){
+    if(topic.datatype=="marine_acoustic_msgs/RawSonarImage"){
       QString::fromStdString(topic.name);
       topic_list.push_back(QString::fromStdString(topic.name));
     }

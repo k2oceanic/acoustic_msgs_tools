@@ -1,6 +1,6 @@
 # acoustic_msgs_tools
 
-This is a set of tools designed to view, debug and process the acoustic_msgs defined in https://github.com/apl-ocean-engineering/hydrographic_msgs
+This is a set of tools designed to view, debug and process the marine_acoustic_msgs defined in https://github.com/apl-ocean-engineering/marine_msgs
 
 Currently it contains:
 

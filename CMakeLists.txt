@@ -19,7 +19,7 @@ set(ROS_DEPENDS
   tf2_ros
   tf2_msgs
   tf2_sensor_msgs
-  acoustic_msgs
+  marine_acoustic_msgs
   )
 
 # if you end up using external dependencies it be a bit more manual (it's not that bad don't worry)

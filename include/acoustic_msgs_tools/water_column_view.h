@@ -4,7 +4,7 @@
 #include <QWidget>
 #include "qcustomplot.h"
 #include <ros/ros.h>
-#include <acoustic_msgs/RawSonarImage.h>
+#include <marine_acoustic_msgs/RawSonarImage.h>
 #include <qtimer.h>
 #include "libInterpolate/Interpolate.hpp"
 #include "ros/master.h"
@@ -22,7 +22,7 @@ public:
   ~WaterColumnView();
   void setupSignals();
 
-  void wcCallback(const acoustic_msgs::RawSonarImage::ConstPtr& wc_msg);
+  void wcCallback(const marine_acoustic_msgs::RawSonarImage::ConstPtr& wc_msg);
 private slots:
   void spinOnce();
   void updateRangeBearing(QMouseEvent *event);

@@ -44,12 +44,12 @@ void WaterColumnView::setupSignals(){
 double getRange(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg, size_t sample_number){
     double range = double(sample_number) *
             wc_msg->ping_info.sound_speed /
-            (2.0 * wc_msg->ping_info.sample_rate);
+            (2.0 * wc_msg->image_sample_rate);
     return  range;
 }
 
 int getSampleNo(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg, double range){
-    double scale = (2.0 * wc_msg->ping_info.sample_rate) /
+    double scale = (2.0 * wc_msg->image_sample_rate) /
                        wc_msg->ping_info.sound_speed;
     int sample_no = range * scale;
     return sample_no;

@@ -4,8 +4,8 @@
 #include <QWidget>
 #include "qcustomplot.h"
 #include <rclcpp/node.hpp>
-#include <acoustic_msgs/msg/raw_sonar_image.hpp>
-#include <acoustic_msgs/msg/sonar_detections.hpp>
+#include <marine_acoustic_msgs/msg/raw_sonar_image.hpp>
+#include <marine_acoustic_msgs/msg/sonar_detections.hpp>
 #include <qtimer.h>
 #include "libInterpolate/Interpolate.hpp"
 #include "rclcpp/executors.hpp"
@@ -24,8 +24,8 @@ public:
   ~WaterColumnView();
   void setupSignals();
 
-  void wcCallback(const acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg);
-  void detectionCallback(const acoustic_msgs::msg::SonarDetections::SharedPtr det_msg);
+  void wcCallback(const marine_acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg);
+  void detectionCallback(const marine_acoustic_msgs::msg::SonarDetections::SharedPtr det_msg);
 private slots:
   void spinOnce();
   void updateRangeBearing(QMouseEvent *event);
@@ -50,8 +50,8 @@ private:
   void checkFlipState();
   Ui::WaterColumnView *ui;
   rclcpp::Node::SharedPtr node_;
-  rclcpp::Subscription<acoustic_msgs::msg::RawSonarImage>::SharedPtr wc_sub_;
-  rclcpp::Subscription<acoustic_msgs::msg::SonarDetections>::SharedPtr det_sub_;
+  rclcpp::Subscription<marine_acoustic_msgs::msg::RawSonarImage>::SharedPtr wc_sub_;
+  rclcpp::Subscription<marine_acoustic_msgs::msg::SonarDetections>::SharedPtr det_sub_;
   QTimer *ros_timer;
   QCPColorMap *colorMap;
   QCPGraph *detctionGraph;

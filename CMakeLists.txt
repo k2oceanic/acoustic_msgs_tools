@@ -8,7 +8,7 @@ set(ROS_DEPENDS
     ament_cmake
     rclcpp
     std_msgs
-    acoustic_msgs
+    marine_acoustic_msgs
 
   )
 

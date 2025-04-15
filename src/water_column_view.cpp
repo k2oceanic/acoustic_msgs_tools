@@ -3,8 +3,8 @@
 
 WaterColumnView::WaterColumnView(QWidget *parent) :
   QWidget(parent),
-  ui(new Ui::WaterColumnView),
-  Node("water_column_view")
+  Node("water_column_view"),
+  ui(new Ui::WaterColumnView)
 {
   ui->setupUi(this);
 
@@ -137,10 +137,6 @@ void WaterColumnView::checkFlipState(){
 void WaterColumnView::wcCallback(const marine_acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg){
   auto M = wc_msg->samples_per_beam;
   auto N = wc_msg->rx_angles.size();
-
-
-
-  const uint8_t *bits = wc_msg->image.data.data();
 
   auto beam_angles = wc_msg->rx_angles;
   std::vector<float> beam_index;

@@ -222,6 +222,26 @@ void WaterColumnView::detectionCallback(const marine_acoustic_msgs::msg::SonarDe
   ui->plot->replot();
 }
 
+void WaterColumnView::rangesCallback(const marine_acoustic_msgs::msg::SonarRanges::SharedPtr rng_msg){
+  auto n = rng_msg->ranges.size();
+  checkFlipState();
+  QVector<double> x(n), y(n);
+  for(size_t i=0; i<n; i++){
+    double range = rng_msg->ranges[i];
+    double rx_angle = rng_msg->beam_unit_vec[i].x; // TODO: Validate it's changing along the x axis
+    x[i] = range * sin(rx_angle);
+    y[i] = range * cos(rx_angle);
+  }
+  detctionGraph->setData(x, y);
+  QPen pen;
+  pen.setColor(QColor(QColorConstants::Green));
+  ui->plot->graph()->setPen(pen);
+  ui->plot->graph()->setLineStyle((QCPGraph::LineStyle::lsNone));
+  ui->plot->graph()->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssPlus, 4));
+
+  ui->plot->replot();
+}
+
 
 void WaterColumnView::spinOnce(){
   if(rclcpp::ok()){
@@ -293,9 +313,11 @@ void WaterColumnView::updateTopics(){
   QStringList topic_list;
     for(auto topic : master_topics){
       QString::fromStdString("topic[0]");
-      if(topic.second[0]=="marine_acoustic_msgs/msg/SonarDetections"){
+      if(topic.second[0]=="marine_acoustic_msgs/msg/SonarDetections" ||
+         topic.second[0]=="marine_acoustic_msgs/msg/SonarRanges"){
         QString::fromStdString(topic.first);
         topic_list.push_back(QString::fromStdString(topic.first));
+        topic_to_type[topic.first] = topic.second[0];
       }
     }
     ui->detect_topic->addItems(topic_list);
@@ -325,14 +347,32 @@ void WaterColumnView::on_auto_gain_stateChanged(int state)
 
 void WaterColumnView::on_detect_topic_currentTextChanged(const QString &arg1)
 {
-  if(arg1.toStdString()==""){
+  std::string topic = arg1.toStdString();
+  if(topic==""){
     return;
   }
-  if(!det_sub_ || det_sub_->get_topic_name() != arg1.toStdString()){
+  if(!det_sub_ || det_sub_->get_topic_name() != topic){
     using std::placeholders::_1;
-    det_sub_ = node_->create_subscription<marine_acoustic_msgs::msg::SonarDetections>(
-          arg1.toStdString(), 1, std::bind(&WaterColumnView::detectionCallback, this, _1));;
-    new_msg = true;
+
+    auto const tt = topic_to_type.find(topic);
+
+    if(tt == topic_to_type.end())
+        return;
+
+    if(tt->second == "marine_acoustic_msgs/msg/SonarDetections")
+    {
+      rng_sub_.reset();
+      det_sub_ = node_->create_subscription<marine_acoustic_msgs::msg::SonarDetections>(
+        topic, 1, std::bind(&WaterColumnView::detectionCallback, this, _1));
+      new_msg = true;
+    }
+    else if (tt->second == "marine_acoustic_msgs/msg/SonarRanges")
+    {
+      det_sub_.reset();
+      rng_sub_ = node_->create_subscription<marine_acoustic_msgs::msg::SonarRanges>(
+        topic, 1, std::bind(&WaterColumnView::rangesCallback, this, _1));
+      new_msg = true;
+    }
   }
 }
 

@@ -6,10 +6,13 @@
 #include <rclcpp/node.hpp>
 #include <marine_acoustic_msgs/msg/raw_sonar_image.hpp>
 #include <marine_acoustic_msgs/msg/sonar_detections.hpp>
+#include <marine_acoustic_msgs/msg/sonar_ranges.hpp>
 #include <qtimer.h>
 #include "libInterpolate/Interpolate.hpp"
 #include "rclcpp/executors.hpp"
-//#include "ros/master.h"
+
+#include <map>
+#include <string>
 
 namespace Ui {
 class WaterColumnView;
@@ -26,6 +29,7 @@ public:
 
   void wcCallback(const marine_acoustic_msgs::msg::RawSonarImage::SharedPtr wc_msg);
   void detectionCallback(const marine_acoustic_msgs::msg::SonarDetections::SharedPtr det_msg);
+  void rangesCallback(const marine_acoustic_msgs::msg::SonarRanges::SharedPtr rng_msg);
 private slots:
   void spinOnce();
   void updateRangeBearing(QMouseEvent *event);
@@ -52,10 +56,12 @@ private:
   rclcpp::Node::SharedPtr node_;
   rclcpp::Subscription<marine_acoustic_msgs::msg::RawSonarImage>::SharedPtr wc_sub_;
   rclcpp::Subscription<marine_acoustic_msgs::msg::SonarDetections>::SharedPtr det_sub_;
+  rclcpp::Subscription<marine_acoustic_msgs::msg::SonarRanges>::SharedPtr rng_sub_;
   QTimer *ros_timer;
   QCPColorMap *colorMap;
   QCPGraph *detctionGraph;
   bool new_msg;
+  std::map<std::string, std::string> topic_to_type;
 };
 
 #endif // WATER_COLUMN_VIEW_H

@@ -45,7 +45,7 @@
        <item>
         <widget class="QSlider" name="gain">
          <property name="maximum">
-          <number>5000</number>
+          <number>50000</number>
          </property>
          <property name="singleStep">
           <number>100</number>
